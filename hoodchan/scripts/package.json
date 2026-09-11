@@ -1,0 +1,9 @@
+{
+  "name": "hoodchan-skill-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Calldata builder for the hoodchan Bankr skill (rip / openSealed via ERC-6551 execute).",
+  "dependencies": {
+    "ethers": "^6.13.0"
+  }
+}
