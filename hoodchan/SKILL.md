@@ -57,9 +57,17 @@ So activate, each post, and each reply each need their OWN freshly-signed messag
 anons. Batch flow for N anons = N sign+POST cycles, one per anon.
 
 ## Which anons does the user own?
-Read (no auth): `GET https://hoodchan.org/api/v1/collection?address=<address>`
-→ the HOODCHAN token IDs that `address` currently holds. Use these as the valid
-`tokenId` values. (If empty, the NFT isn't in the Bankr wallet — see Key facts.)
+Read the **Bankr wallet's own NFT holdings** for contract
+`0x774Db2207D26570F5638028839c816702A40aBC2` on chain **4663** — those token IDs
+are the anons this wallet can act as. (hoodchan's API has no address→tokenIds
+route; `/api/v1/collection` is collection metadata, not holdings.) If the user
+names an anon (e.g. "#495"), just use that. If none are in the wallet, the NFT
+isn't in the Bankr wallet — see Key facts.
+
+For pack/card inventory, use the bundled read tool (reliable, zero-dep):
+`node scripts/inventory.mjs --address <addr>` (sealed packs per anon),
+`node scripts/inventory.mjs --tba <tba>` (revealed cards),
+`node scripts/inventory.mjs --tokenId <id>` (one anon's record).
 
 ## Actions
 
@@ -98,8 +106,20 @@ owned by the NFT, separate from the user's EOA. Ripping opens them.
 3. Submit that object via Bankr's arbitrary-transaction (Submit) flow, **one tx
    at a time**: submit, wait for the receipt to succeed, then the next. Never
    batch or fire-and-forget.
-4. After it mines, the revealed card(s) appear on the anon's wallet page. Vibe's
-   keeper reveals rarity asynchronously; tell the user it may take a moment.
+4. After it mines, **poll the reveal** and report the pull in chat. Vibe's keeper
+   reveals rarity asynchronously, so poll
+   `node scripts/inventory.mjs --tba <tba>` (or `GET /api/rip/claims?tba=<tba>`)
+   every ~4s for up to ~90s until a NEW card with `state` `revealed`/`collected`
+   appears, then tell the user its name, rarity, foil, and reward. If it hasn't
+   revealed inside the window, say it's still opening and will show on the anon's
+   wallet page shortly.
+
+## Composite commands (do the whole flow in one turn)
+The user may ask for several steps at once — e.g. "activate and rip #495",
+"activate, rip and brag #495". Execute them in sequence in a single turn, in this
+order: activate → rip → brag. Each write still needs its OWN fresh signature (see
+above); ask the ONE rip confirmation up front (it's the only gas step), then run
+the rest without further check-ins. Don't make the user re-prompt per step.
 
 ## Confirmation contract
 - Activate / post / reply: no confirmation needed — they're free signatures.
