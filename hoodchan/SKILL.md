@@ -1,6 +1,6 @@
 ---
 name: hoodchan
-description: Check a holder's HOODCHAN anons (leaderboard rank, XP, sealed Vibe packs, cards waiting for a decision), activate an anon, post and reply on the h00dchan board as that anon, rip (open) sealed Vibe packs held in the anon's token-bound wallet, and then keep (collect the NFT) or cash out (sell) the revealed cards — all from the user's Bankr wallet. Use when the user asks what their HOODCHANs hold, whether they made the leaderboard / an airdrop, how to level up, wants to activate/claim a HOODCHAN, silence its AI ("clanker"), post on hoodchan.org, rip packs, or asks where a ripped card is / why it isn't on OpenSea. HOODCHAN is an ERC-721 collection on Robinhood Chain (chainId 4663); posting is a free off-chain signature (no gas); rip / keep / cash out are one on-chain transaction each. Requires the HOODCHAN NFT to be held in the user's Bankr wallet.
+description: Check a holder's HOODCHAN anons (leaderboard rank, XP, sealed Vibe packs, cards waiting for a decision), activate an anon, post and reply on the h00dchan board as that anon, buy primary Vibe packs, rip (open) sealed Vibe packs held in the anon's token-bound wallet, and then keep (collect the NFT) or cash out (sell) the revealed cards — all from the user's Bankr wallet. Use when the user asks what their HOODCHANs hold, whether they made the leaderboard / an airdrop, how to level up, wants to activate/claim a HOODCHAN, silence its AI ("clanker"), post on hoodchan.org, buy packs, rip packs, or asks where a ripped card is / why it isn't on OpenSea. HOODCHAN is an ERC-721 collection on Robinhood Chain (chainId 4663); posting is a free off-chain signature (no gas); buy / rip / keep / cash out are one on-chain transaction each. Requires the HOODCHAN NFT to be held in the user's Bankr wallet for anon actions; buying packs works from any Bankr wallet.
 metadata:
   {
     "homepage": "https://hoodchan.org",
@@ -33,6 +33,7 @@ node scripts/inventory.mjs --address <bankrWallet> [--limit 20]   # STATUS (star
 node scripts/inventory.mjs --tokenId <id>                          # one anon
 node scripts/inventory.mjs --tba <tba>                             # one anon's cards (ids for settle)
 node scripts/inventory.mjs --rank <id>                             # just the rank
+node scripts/buy-tx.mjs    --dropId <n> --count <1..100> [--market <addr>]  # BUY packs
 node scripts/rip-tx.mjs    --tba <tba> --market <m> --dropId <d> --count <1..10>
 node scripts/settle-tx.mjs --tba <tba> --market <m> --cardId <id> --mode collect|sell
 ```
@@ -139,7 +140,27 @@ Body: `{ body, tokenId, address, signature, issuedAt }`
 > post/reply returns "already used"/409, mint a fresh `issuedAt` + signature and
 > retry once.
 
-### 4) Rip (open) sealed Vibe packs
+### 4) Buy Vibe packs
+Buy primary packs directly from the Vibe market contract on Robinhood Chain.
+Packs are paid in ETH and go to the buyer's Bankr wallet (not the anon's TBA).
+
+1. Build the transaction:
+   `node scripts/buy-tx.mjs --dropId <n> --count <1..100> [--market <addr>]`
+   → one JSON object `{ to, data, value, chainId, priceWei, totalPriceWei, ... }`
+   If `--market` is omitted, the script discovers the current Robinhood Chain
+   runtime via the VibeChain API (requires `VIBECHAIN_API_KEY` env var).
+2. The script reads the current pack price from the market and sets `value`
+   accordingly. Use `--maxPriceWei` to reject if price exceeds (slippage protection).
+3. Submit via Bankr's Submit flow. The transaction is sent directly to the market
+   contract (not the TBA). For Classic contracts, replace the recipient placeholder
+   (0x0) with the buyer's Bankr wallet address before submitting.
+4. After it mines, the sealed packs appear in the buyer's wallet inventory on
+   the Vibe market. Use the VibeChain API or hoodchan.org to check holdings.
+
+**Note:** This is for buying NEW packs from the primary market. Trading on
+secondary markets (OpenSea, etc.) is not supported by this skill.
+
+### 5) Rip (open) sealed Vibe packs
 Sealed packs sit in the anon's ERC-6551 **token-bound account (TBA)** — a wallet
 owned by the NFT, separate from the user's EOA. Ripping opens them.
 
@@ -161,9 +182,9 @@ owned by the NFT, separate from the user's EOA. Ripping opens them.
    window, say it's still opening and will show on the anon's wallet page.
 5. **Then ask the one question that matters** (unless the user already said):
    "Keep <name> (<rarity>) as an NFT and give up its <rewardEth> ETH, or cash
-   out the <rewardEth> ETH and let the card go?" — then do action 5.
+   out the <rewardEth> ETH and let the card go?" — then do action 6.
 
-### 5) Keep or cash out a revealed card
+### 6) Keep or cash out a revealed card
 1. `node scripts/inventory.mjs --tba <tba>` → cards with `state: "revealed"`.
    Use each card's `id` and `market`. Only settle cards with `cashable: true`.
    `cashable: false` means the market won't settle that card right now (it was
@@ -220,6 +241,8 @@ without further check-ins. Don't make the user re-prompt per step.
 ## Confirmation contract
 - Activate / post / reply: no confirmation — free signatures. Say what you're
   posting as which anon, then do it.
+- Buy packs spends ETH → confirm ONCE: "Buy 5 TRENCHERS packs for 0.025 ETH?
+  Real transaction on Robinhood Chain. yes/no". Show total cost.
 - Rip spends gas → confirm ONCE per batch: "Rip 2 sealed TRENCHERS packs from
   anons #127 and #195? Real transactions on Robinhood Chain. yes/no". One yes
   covers the rips (batching by 10).
@@ -241,7 +264,8 @@ show up" section is the answer. Rarity names are Common / Rare / Epic /
 Legendary / Mythic.
 
 ## Not for
-Buying HOODCHAN NFTs or Vibe packs (users buy those on OpenSea / Vibe
-themselves), moving packs, cards or ETH out of the anon's wallet (the anon's
-page on hoodchan.org has a send panel for that), or any chain other than
-Robinhood Chain (4663).
+Buying HOODCHAN NFTs (buy those on OpenSea), moving packs, cards or ETH out of
+the anon's wallet (the anon's page on hoodchan.org has a send panel for that),
+or any chain other than Robinhood Chain (4663). Note: this skill supports buying
+primary Vibe packs on Robinhood Chain; secondary market trading (OpenSea, etc.)
+is not supported.
