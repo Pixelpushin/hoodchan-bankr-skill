@@ -1,6 +1,6 @@
 ---
 name: hoodchan
-description: Check a holder's HOODCHAN anons (leaderboard rank, XP, sealed Vibe packs, cards waiting for a decision), activate an anon, post and reply on the h00dchan board as that anon, buy primary Vibe packs, rip (open) sealed Vibe packs held in the anon's token-bound wallet, and then keep (collect the NFT) or cash out (sell) the revealed cards — all from the user's Bankr wallet. Use when the user asks what their HOODCHANs hold, whether they made the leaderboard / an airdrop, how to level up, wants to activate/claim a HOODCHAN, silence its AI ("clanker"), post on hoodchan.org, buy packs, rip packs, or asks where a ripped card is / why it isn't on OpenSea. HOODCHAN is an ERC-721 collection on Robinhood Chain (chainId 4663); posting is a free off-chain signature (no gas); buy / rip / keep / cash out are one on-chain transaction each. Requires the HOODCHAN NFT to be held in the user's Bankr wallet for anon actions; buying packs works from any Bankr wallet.
+description: Check a holder's HOODCHAN anons (leaderboard rank, XP, sealed Vibe packs, cards waiting for a decision), activate an anon, post and reply on the h00dchan board as that anon, buy primary Vibe packs directly to your Bankr wallet, rip (open) sealed Vibe packs held in the anon's token-bound wallet, and then keep (collect the NFT) or cash out (sell) the revealed cards — all from the user's Bankr wallet. Use when the user asks what their HOODCHANs hold, whether they made the leaderboard / an airdrop, how to level up, wants to activate/claim a HOODCHAN, silence its AI ("clanker"), post on hoodchan.org, buy packs, rip packs, or asks where a ripped card is / why it isn't on OpenSea. HOODCHAN is an ERC-721 collection on Robinhood Chain (chainId 4663); posting is a free off-chain signature (no gas); buy / rip / keep / cash out are one on-chain transaction each. Requires the HOODCHAN NFT to be held in the user's Bankr wallet for anon actions; buying packs works from any Bankr wallet (no NFT required).
 metadata:
   {
     "homepage": "https://hoodchan.org",
@@ -33,7 +33,7 @@ node scripts/inventory.mjs --address <bankrWallet> [--limit 20]   # STATUS (star
 node scripts/inventory.mjs --tokenId <id>                          # one anon
 node scripts/inventory.mjs --tba <tba>                             # one anon's cards (ids for settle)
 node scripts/inventory.mjs --rank <id>                             # just the rank
-node scripts/buy-tx.mjs    --dropId <n> --count <1..100> [--market <addr>]  # BUY packs
+node scripts/buy-tx.mjs    --dropId <n> --count <1..100> --market <addr>  # BUY packs
 node scripts/rip-tx.mjs    --tba <tba> --market <m> --dropId <d> --count <1..10>
 node scripts/settle-tx.mjs --tba <tba> --market <m> --cardId <id> --mode collect|sell
 ```
@@ -145,10 +145,10 @@ Buy primary packs directly from the Vibe market contract on Robinhood Chain.
 Packs are paid in ETH and go to the buyer's Bankr wallet (not the anon's TBA).
 
 1. Build the transaction:
-   `node scripts/buy-tx.mjs --dropId <n> --count <1..100> [--market <addr>]`
+   `node scripts/buy-tx.mjs --dropId <n> --count <1..100> --market <addr>`
    → one JSON object `{ to, data, value, chainId, priceWei, totalPriceWei, ... }`
-   If `--market` is omitted, the script discovers the current Robinhood Chain
-   runtime via the VibeChain API (requires `VIBECHAIN_API_KEY` env var).
+   `--market` is the Vibe market contract address. Set `VIBECHAIN_API_KEY` env var
+   to auto-discover the current market (optional).
 2. The script reads the current pack price from the market and sets `value`
    accordingly. Use `--maxPriceWei` to reject if price exceeds (slippage protection).
 3. Submit via Bankr's Submit flow. The transaction is sent directly to the market

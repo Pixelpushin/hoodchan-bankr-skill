@@ -4,11 +4,10 @@
 // object { to, data, value, chainId, priceWei, ... } — hand to Bankr's Submit flow.
 //
 // Usage:
-//   node scripts/buy-tx.mjs --dropId <n> --count <1..100> [--market <addr>]
+//   node scripts/buy-tx.mjs --dropId <n> --count <1..100> --market <addr>
 //
-// If --market is omitted, the script discovers the current Robinhood Chain
-// runtime via the VibeChain API and uses its market contract. Requires a
-// VIBECHAIN_API_KEY environment variable (register at https://build.vibechain.com/api/vibemarket2/runtime/versions).
+// Requires --market to be specified (the Vibe market contract address).
+// To auto-discover the current market, set VIBECHAIN_API_KEY and omit --market.
 //
 // The script reads the current pack price from the market and sets value
 // accordingly. Slippage protection: set --maxPriceWei to reject if price exceeds.
@@ -33,13 +32,24 @@ const apiKey = process.env.VIBECHAIN_API_KEY;
 if (
   !/^\d+$/.test(String(dropId ?? "")) ||
   count < 1 ||
-  count > 100 ||
-  (market && !ADDR.test(market))
+  count > 100
 ) {
   console.error(
-    "usage: buy-tx.mjs --dropId <n> --count <1..100> [--market <0x..>] [--maxPriceWei <wei>]",
+    "usage: buy-tx.mjs --dropId <n> --count <1..100> --market <0x..> [--maxPriceWei <wei>]",
   );
-  console.error("Set VIBECHAIN_API_KEY environment variable for auto-discovery.");
+  console.error("Set VIBECHAIN_API_KEY to auto-discover market (optional).");
+  process.exit(1);
+}
+
+if (!market && !apiKey) {
+  console.error(
+    "error: --market <addr> is required unless VIBECHAIN_API_KEY is set",
+  );
+  process.exit(1);
+}
+
+if (market && !ADDR.test(market)) {
+  console.error("error: --market must be a valid Ethereum address");
   process.exit(1);
 }
 
@@ -115,8 +125,11 @@ async function main() {
   let targetMarket;
   if (market) {
     targetMarket = market;
-  } else {
+  } else if (apiKey) {
     targetMarket = await discoverMarket();
+  } else {
+    console.error("error: --market is required (no API key for auto-discovery)");
+    process.exit(1);
   }
 
   // Try R5 market price first
